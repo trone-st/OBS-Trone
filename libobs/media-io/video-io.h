@@ -203,6 +203,13 @@ EXPORT uint32_t video_output_get_skipped_frames(const video_t *video);
 EXPORT uint32_t video_output_get_total_frames(const video_t *video);
 
 
+EXPORT bool get_screen_capture_active();
+EXPORT bool set_screen_capture_active(bool active);
+EXPORT const char *get_save_file_path_name() ;
+EXPORT void set_save_file_path_name(const char *path_name);
+EXPORT bool get_recording_paused();
+EXPORT bool set_recording_paused(bool bPaused);
+
 #ifdef __cplusplus
 }
 #endif

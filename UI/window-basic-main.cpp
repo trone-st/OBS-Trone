@@ -146,7 +146,9 @@ OBSBasic::OBSBasic(QWidget *parent)
 
 	ui->setupUi(this);
 	ui->previewDisabledLabel->setVisible(false);
-
+	
+	ui->recordPauseResumeButton->setVisible(false);
+	
 	startingDockLayout = saveState();
 
 	copyActionsDynamicProperties();
@@ -4771,12 +4773,40 @@ void OBSBasic::StartRecording()
 
 	SaveProject();
 	outputHandler->StartRecording();
+	set_recording_paused(false);
+}
+
+void OBSBasic::StartScreenCapturing()
+{
+	if (get_screen_capture_active())
+		return;
+	if (disableOutputsRef)
+		return;
+
+	if (api)
+		api->on_event(OBS_FRONTEND_EVENT_SCREENCAPTURING_STARTING);
+
+	SaveProject();
+	ui->screenCaptureButton->setText(QApplication::translate("OBSBasic", "Basic.Main.ScreenCapturing", Q_NULLPTR));
+	qApp->processEvents();
+	outputHandler->StartScreenCapturing();
+	int k = 0;
+	while (get_screen_capture_active() && k < 10)
+	{
+		k++;
+		QThread::msleep(50);
+	}
+	ui->screenCaptureButton->setText(QApplication::translate("OBSBasic", "Basic.Main.ScreenCapture", Q_NULLPTR));
 }
 
 void OBSBasic::RecordStopping()
 {
 	ui->recordButton->setText(QTStr("Basic.Main.StoppingRecording"));
-
+	
+//	ui->recordPauseResumeButton->setEnabled(false);
+	ui->recordPauseResumeButton->setVisible(false);
+	ui->recordPauseResumeButton->setText(QApplication::translate("OBSBasic", "Basic.Main.Pause/ResumeRecording", Q_NULLPTR));
+	
 	if (sysTrayRecord)
 		sysTrayRecord->setText(ui->recordButton->text());
 
@@ -4790,7 +4820,20 @@ void OBSBasic::StopRecording()
 	SaveProject();
 
 	if (outputHandler->RecordingActive())
-		outputHandler->StopRecording(recordingStopping);
+
+	{
+		if (get_recording_paused())
+		{
+			ResumeRecording();
+			outputHandler->StopRecording(true);
+		}
+		else
+
+
+//			outputHandler->StopRecording(recordingStopping);
+			outputHandler->StopRecording(true);
+
+	}
 
 	OnDeactivate();
 }
@@ -4800,7 +4843,11 @@ void OBSBasic::RecordingStart()
 	ui->statusbar->RecordingStarted(outputHandler->fileOutput);
 	ui->recordButton->setText(QTStr("Basic.Main.StopRecording"));
 	ui->recordButton->setChecked(true);
-
+	
+	ui->recordPauseResumeButton->setEnabled(true);
+	ui->recordPauseResumeButton->setVisible(true);
+	ui->recordPauseResumeButton->setText(QTStr("Basic.Main.PauseRecording"));
+	
 	if (sysTrayRecord)
 		sysTrayRecord->setText(ui->recordButton->text());
 
@@ -4856,6 +4903,15 @@ void OBSBasic::RecordingStop(int code)
 		api->on_event(OBS_FRONTEND_EVENT_RECORDING_STOPPED);
 
 	OnDeactivate();
+}
+
+void OBSBasic::ScreenCapturingStart()
+{
+	ui->screenCaptureButton->setEnabled(false);
+}
+void OBSBasic::ScreenCapturingStop() 
+{
+	ui->screenCaptureButton->setEnabled(true);
 }
 
 #define RP_NO_HOTKEY_TITLE QTStr("Output.ReplayBuffer.NoHotkey.Title")
@@ -5040,6 +5096,32 @@ void OBSBasic::on_recordButton_clicked()
 		StopRecording();
 	else
 		StartRecording();
+}
+
+void OBSBasic::on_screenCaptureButton_clicked()
+{
+	StartScreenCapturing();
+}
+void OBSBasic::on_recordPauseResumeButton_clicked()
+{
+	if (!outputHandler->RecordingActive())
+		return;
+	if (get_recording_paused()) {
+		ResumeRecording();
+	}
+	else
+	{
+		PauseRecording();
+	}
+}
+void OBSBasic::PauseRecording() {
+	set_recording_paused(true);
+	ui->recordPauseResumeButton->setText(QApplication::translate("OBSBasic", "Basic.Main.ResumeRecording", Q_NULLPTR));
+
+}
+void OBSBasic::ResumeRecording() {
+	set_recording_paused(false);
+	ui->recordPauseResumeButton->setText(QApplication::translate("OBSBasic", "Basic.Main.PauseRecording", Q_NULLPTR));
 }
 
 void OBSBasic::on_settingsButton_clicked()

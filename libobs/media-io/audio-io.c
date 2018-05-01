@@ -157,6 +157,9 @@ static inline void do_audio_output(struct audio_output *audio,
 		data.frames = frames;
 		data.timestamp = timestamp;
 
+		if(get_recording_paused())
+			break;
+
 		if (resample_audio_output(input, &data))
 			input->callback(input->param, mix_idx, &data);
 	}

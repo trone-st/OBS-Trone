@@ -392,12 +392,20 @@ public slots:
 	void StreamingStop(int errorcode, QString last_error);
 
 	void StartRecording();
+	
+	void StartScreenCapturing();
+	
 	void StopRecording();
 
 	void RecordingStart();
 	void RecordStopping();
 	void RecordingStop(int code);
-
+	
+	void ScreenCapturingStart();
+	void ScreenCapturingStop();
+	void PauseRecording();
+	void ResumeRecording();
+	
 	void StartReplayBuffer();
 	void StopReplayBuffer();
 
@@ -636,6 +644,10 @@ private slots:
 
 	void on_streamButton_clicked();
 	void on_recordButton_clicked();
+	
+	void on_screenCaptureButton_clicked();
+	void on_recordPauseResumeButton_clicked();
+	
 	void on_settingsButton_clicked();
 
 	void on_actionHelpPortal_triggered();

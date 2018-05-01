@@ -112,6 +112,132 @@ static inline bool scale_video_output(struct video_input *input,
 	return success;
 }
 
+//size.total = size.width * size.height;
+//y = yuv[position.y * size.width + position.x];
+//u = yuv[(position.y / 2) * (size.width / 2) + (position.x / 2) + size.total];
+//v = yuv[(position.y / 2) * (size.width / 2) + (position.x / 2) + size.total + (size.total / 4)];
+//rgb = Y¡¬UV444toRGB888(y, u, v);
+uint8_t clamp(int val, int min_val, int max_val) {
+	if (val < min_val) return min_val;
+	if (val > max_val) return max_val;
+	return val;
+}
+uint8_t clip(int val) {
+	if (val < 0) return 0;
+	if (val > 255) return 255;
+	return val;
+}
+void yuv2rgb(uint8_t yValue, uint8_t uValue, uint8_t vValue, uint8_t *r, uint8_t *g, uint8_t *b) {
+	int rTmp = yValue + (1.370705 * (vValue - 128));
+	int gTmp = yValue - (0.698001 * (vValue - 128)) - (0.337633 * (uValue - 128));
+	int bTmp = yValue + (1.732446 * (uValue - 128));
+	*r = clamp(rTmp, 0, 255);
+	*g = clamp(gTmp, 0, 255);
+	*b = clamp(bTmp, 0, 255);
+}
+
+
+static bool SaveFrameToFile(struct video_data *data) {
+
+	//convert from NV12 format to uvyx format
+	uint8_t           *ptr ;
+
+	char *saveFilePathName = get_save_file_path_name();
+	int width = data->linesize[0];
+	int height = width * 9 / 16;
+	ptr = bmalloc(3 * width * height);
+	uint8_t A,Y, U, V, R, G, B;
+	int  C, D, E;
+	//convert from 4:2:0 -> 4:2:2
+	uint8_t *chorma_out = bmalloc(width * height);
+	uint8_t *chorma_in = data->data[1];
+	int width_d2 = width / 2;
+	int height_d2 = height / 2;
+	for (int y = 0; y < height_d2; y++) {
+		for (int x = 0; x < width; x++) {
+
+				if (y < height_d2 - 2) {
+					int A, B, C;
+					A = chorma_in[y  * width_d2 + x];
+					B = chorma_in[(y + 1)  * width_d2 + x];
+					C = chorma_in[(y + 2)  * width_d2 + x];
+					chorma_out[2*y*width_d2 + x] = A;
+					chorma_out[(2*y + 1)*width / 2 + x] = clip(((9*(A+B))-(A+C)+8) >> 4);
+				}
+				else if (y == height_d2 - 2) {
+					int R, Q, S;
+					R = chorma_in[y  * width_d2 + x];
+					Q = chorma_in[(y - 1)  * width_d2 + x];
+					S = chorma_in[(y + 1)  * width_d2 + x];
+					chorma_out[2*y*width_d2 + x] = R;
+					chorma_out[(2*y + 1)*width / 2 + x] = clip(((9 * (R + S)) - (Q + S) + 8) >> 4);
+				}
+				else {
+					int R, S;
+					S = chorma_in[y  * width_d2 + x];
+					R = chorma_in[(y - 1)  * width_d2 + x];
+					chorma_out[2*y*width_d2 + x] = S;
+					chorma_out[(2*y + 1)*width / 2 + x] = clip(((9 * (S + S)) - (R + S) + 8) >> 4);
+				}
+		}
+	}
+	//convert 4:2:2 -> 4:4:4
+		for (int y = 0; y < height_d2; y++) {
+		for (int x = 0; x < width; x++) {
+
+				if (y < height_d2 - 2) {
+					int A, B, C;
+					A = chorma_in[y  * width_d2 + x];
+					B = chorma_in[(y + 1)  * width_d2 + x];
+					C = chorma_in[(y + 2)  * width_d2 + x];
+					chorma_out[2*y*width_d2 + x] = A;
+					chorma_out[(2*y + 1)*width / 2 + x] = clip(((9*(A+B))-(A+C)+8) >> 4);
+				}
+				else if (y == height_d2 - 2) {
+					int R, Q, S;
+					R = chorma_in[y  * width_d2 + x];
+					Q = chorma_in[(y - 1)  * width_d2 + x];
+					S = chorma_in[(y + 1)  * width_d2 + x];
+					chorma_out[2*y*width_d2 + x] = R;
+					chorma_out[(2*y + 1)*width / 2 + x] = clip(((9 * (R + S)) - (Q + S) + 8) >> 4);
+				}
+				else {
+					int R, S;
+					S = chorma_in[y  * width_d2 + x];
+					R = chorma_in[(y - 1)  * width_d2 + x];
+					chorma_out[2*y*width_d2 + x] = S;
+					chorma_out[(2*y + 1)*width / 2 + x] = clip(((9 * (S + S)) - (R + S) + 8) >> 4);
+				}
+		}
+	}
+	uint8_t *chorma_result = bmalloc(width * height*2);
+	int total = width * height;
+
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			Y = data->data[0][y * width + x];
+			U = data->data[1][(y/2 ) * (width/2)*2 + (x/2)*2];
+			V = data->data[1][(y/2 ) * (width/2)*2 + (x/2)*2 + 1];
+
+			C = Y - 16;
+			D = U - 128;
+			E = V - 128;
+			R = clip((298 * C + 409 * E + 128) >> 8);
+			G = clip((298 * C - 100 * D - 208 * E + 128) >> 8);
+			B = clip((298 * C + 516 * D + 128) >> 8);
+			ptr[3 * y*width + 3 * x + 0] = B;
+			ptr[3 * y*width + 3 * x + 1] = G;
+			ptr[3 * y*width + 3 * x + 2] = R;
+
+		}
+	}
+	image_write(ptr, saveFilePathName,data->linesize[0],height);
+	return true;
+}
+
 static inline bool video_output_cur_frame(struct video_output *video)
 {
 	struct cached_frame_info *frame_info;
@@ -123,17 +249,30 @@ static inline bool video_output_cur_frame(struct video_output *video)
 	pthread_mutex_lock(&video->data_mutex);
 
 	frame_info = &video->cache[video->first_added];
-
+	
+	if (get_screen_capture_active()) {
+		struct video_data frame = frame_info->frame;
+		SaveFrameToFile(&frame);
+		set_screen_capture_active(false);
+		
+	}
+	
 	pthread_mutex_unlock(&video->data_mutex);
 
 	/* -------------------------------- */
 
 	pthread_mutex_lock(&video->input_mutex);
-
+	// added by kgc 
+	bool breaked = false;
 	for (size_t i = 0; i < video->inputs.num; i++) {
 		struct video_input *input = video->inputs.array+i;
 		struct video_data frame = frame_info->frame;
-
+		
+		if (get_recording_paused()) {
+			breaked = true;
+			break;
+		}
+		
 		if (scale_video_output(input, &frame))
 			input->callback(input->param, &frame);
 	}
@@ -143,7 +282,12 @@ static inline bool video_output_cur_frame(struct video_output *video)
 	/* -------------------------------- */
 
 	pthread_mutex_lock(&video->data_mutex);
-
+	
+	if (breaked)
+	{
+		complete = true;
+	}
+	
 	frame_info->frame.timestamp += video->frame_time;
 	complete = --frame_info->count == 0;
 	skipped = frame_info->skipped > 0;
@@ -527,4 +671,29 @@ uint32_t video_output_get_skipped_frames(const video_t *video)
 uint32_t video_output_get_total_frames(const video_t *video)
 {
 	return video->total_frames;
+}
+
+bool screen_capturing_active = false;
+char save_file_path_name[1024] = "";
+bool get_screen_capture_active() {
+	return screen_capturing_active;
+}
+bool set_screen_capture_active(bool active) {
+	screen_capturing_active = active;
+	return screen_capturing_active;
+}
+const char * get_save_file_path_name() 
+{
+	return save_file_path_name;
+}
+void set_save_file_path_name(const char *path_name) {
+	strcpy_s(save_file_path_name, 1024, path_name);
+}
+bool recordingPaused = false;
+bool get_recording_paused() {
+	return recordingPaused;
+}
+bool set_recording_paused(bool bPaused) {
+	recordingPaused = bPaused;
+	return recordingPaused;
 }

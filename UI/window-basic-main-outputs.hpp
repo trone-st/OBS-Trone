@@ -33,12 +33,16 @@ struct BasicOutputHandler {
 
 	virtual bool StartStreaming(obs_service_t *service) = 0;
 	virtual bool StartRecording() = 0;
+	
+	virtual bool StartScreenCapturing() = 0;
+	
 	virtual bool StartReplayBuffer() {return false;}
 	virtual void StopStreaming(bool force = false) = 0;
 	virtual void StopRecording(bool force = false) = 0;
 	virtual void StopReplayBuffer(bool force = false) {(void)force;}
 	virtual bool StreamingActive() const = 0;
 	virtual bool RecordingActive() const = 0;
+
 	virtual bool ReplayBufferActive() const {return false;}
 
 	virtual void Update() = 0;

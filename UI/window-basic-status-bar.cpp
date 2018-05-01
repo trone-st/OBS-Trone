@@ -244,7 +244,10 @@ void OBSBasicStatusBar::UpdateStreamTime()
 
 void OBSBasicStatusBar::UpdateRecordTime()
 {
-	totalRecordSeconds++;
+	
+	if(!get_recording_paused())
+	
+		totalRecordSeconds++;
 
 	int seconds      = totalRecordSeconds % 60;
 	int totalMinutes = totalRecordSeconds / 60;

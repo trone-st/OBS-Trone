@@ -219,12 +219,16 @@ struct SimpleOutput : BasicOutputHandler {
 
 	virtual bool StartStreaming(obs_service_t *service) override;
 	virtual bool StartRecording() override;
+	
+	virtual bool StartScreenCapturing() override;
+	
 	virtual bool StartReplayBuffer() override;
 	virtual void StopStreaming(bool force) override;
 	virtual void StopRecording(bool force) override;
 	virtual void StopReplayBuffer(bool force) override;
 	virtual bool StreamingActive() const override;
 	virtual bool RecordingActive() const override;
+
 	virtual bool ReplayBufferActive() const override;
 };
 
@@ -935,6 +939,47 @@ bool SimpleOutput::StartRecording()
 	return true;
 }
 
+bool SimpleOutput::StartScreenCapturing()
+{
+	set_screen_capture_active(true);
+	///
+	obs_data_t *settings;
+	const char *path = config_get_string(main->Config(),
+		"SimpleOutput", "FilePath");
+	const char *filenameFormat = config_get_string(main->Config(), "Output",
+		"FilenameFormatting");
+	bool noSpace = config_get_bool(main->Config(), "SimpleOutput",
+		"FileNameWithoutSpace");
+	os_dir_t *dir = path && path[0] ? os_opendir(path) : nullptr;
+
+	if (!dir) {
+		if (main->isVisible())
+			OBSMessageBox::information(main,
+				QTStr("Output.BadPath.Title"),
+				QTStr("Output.BadPath.Text"));
+		else
+			main->SysTrayNotify(QTStr("Output.BadPath.Text"),
+				QSystemTrayIcon::Warning);
+		return false;
+	}
+
+	os_closedir(dir);
+
+	string strPath;
+	strPath += path;
+
+	char lastChar = strPath.back();
+	if (lastChar != '/' && lastChar != '\\')
+		strPath += "/";
+
+	strPath += GenerateSpecifiedFilename("jpg",
+		noSpace, filenameFormat);
+	ensure_directory_exists(strPath);
+
+	set_save_file_path_name(strPath.c_str());
+	return true;
+}
+
 bool SimpleOutput::StartReplayBuffer()
 {
 	UpdateRecording();
@@ -1020,12 +1065,16 @@ struct AdvancedOutput : BasicOutputHandler {
 
 	virtual bool StartStreaming(obs_service_t *service) override;
 	virtual bool StartRecording() override;
+	
+	virtual bool StartScreenCapturing() override;
+	
 	virtual bool StartReplayBuffer() override;
 	virtual void StopStreaming(bool force) override;
 	virtual void StopRecording(bool force) override;
 	virtual void StopReplayBuffer(bool force) override;
 	virtual bool StreamingActive() const override;
 	virtual bool RecordingActive() const override;
+
 	virtual bool ReplayBufferActive() const override;
 };
 
@@ -1618,6 +1667,47 @@ bool AdvancedOutput::StartRecording()
 		return false;
 	}
 
+	return true;
+}
+
+bool AdvancedOutput::StartScreenCapturing()
+{
+	set_screen_capture_active(true);
+	///
+	obs_data_t *settings;
+	const char *path = config_get_string(main->Config(),
+		"SimpleOutput", "FilePath");
+	const char *filenameFormat = config_get_string(main->Config(), "Output",
+		"FilenameFormatting");
+	bool noSpace = config_get_bool(main->Config(), "SimpleOutput",
+		"FileNameWithoutSpace");
+	os_dir_t *dir = path && path[0] ? os_opendir(path) : nullptr;
+
+	if (!dir) {
+		if (main->isVisible())
+			OBSMessageBox::information(main,
+				QTStr("Output.BadPath.Title"),
+				QTStr("Output.BadPath.Text"));
+		else
+			main->SysTrayNotify(QTStr("Output.BadPath.Text"),
+				QSystemTrayIcon::Warning);
+		return false;
+	}
+
+	os_closedir(dir);
+
+	string strPath;
+	strPath += path;
+
+	char lastChar = strPath.back();
+	if (lastChar != '/' && lastChar != '\\')
+		strPath += "/";
+
+	strPath += GenerateSpecifiedFilename("jpg",
+		noSpace, filenameFormat);
+	ensure_directory_exists(strPath);
+
+	set_save_file_path_name(strPath.c_str());
 	return true;
 }
 
